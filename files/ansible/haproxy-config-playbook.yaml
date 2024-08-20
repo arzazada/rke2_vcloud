@@ -1,0 +1,42 @@
+---
+- hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    ansible_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    master_endpoints: "{{ lookup('env', 'MASTER_ENDPOINTS') | split(',') }}"
+
+  tasks:
+    - name: Wait for SSH connection
+      become: false
+      ansible.builtin.wait_for:
+        port: 22
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+        search_regex: OpenSSH
+        sleep: 10
+        timeout: 300
+      connection: local
+
+    - name: Grace period pause
+      ansible.builtin.pause:
+        seconds: 90
+      delegate_to: localhost
+
+    - name: Parse haproxy config
+      template:
+        src: "{{ lookup('env', 'JINJA_TEMPLATE') }}"
+        dest: /etc/haproxy/haproxy.cfg
+
+    - name: Reload HAProxy
+      systemd:
+        name: haproxy
+        state: reloaded
+
+    - name: Delete known_hosts file locally
+      ansible.builtin.file:
+        path: "~/.ssh/known_hosts"
+        state: absent
+      delegate_to: localhost
+      become: false
+...

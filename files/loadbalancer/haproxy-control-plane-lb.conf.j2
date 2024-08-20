@@ -1,0 +1,68 @@
+global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+        chroot /var/lib/haproxy
+        stats socket /run/haproxy/admin.sock mode 660 level admin
+        stats timeout 30s
+        user haproxy
+        group haproxy
+        daemon
+
+        maxconn 2000000
+        nbproc 8
+        cpu-map  1 1
+        cpu-map  2 2
+        cpu-map  3 3
+        cpu-map  4 4
+        stats bind-process 4
+
+defaults
+        log     global
+        mode    http
+        option  httplog
+        option forwardfor
+        option  dontlognull
+        timeout connect 50000s
+        timeout client  50000s
+        timeout server  50000s
+        retries 4
+        maxconn 2000000
+        errorfile 400 /etc/haproxy/errors/400.http
+        errorfile 403 /etc/haproxy/errors/403.http
+        errorfile 408 /etc/haproxy/errors/408.http
+        errorfile 500 /etc/haproxy/errors/500.http
+        errorfile 502 /etc/haproxy/errors/502.http
+        errorfile 503 /etc/haproxy/errors/503.http
+        errorfile 504 /etc/haproxy/errors/504.http
+
+
+frontend kubernetes
+    bind *:6443
+    option tcplog
+    mode tcp
+    default_backend kubernetes-master-nodes
+
+backend kubernetes-master-nodes
+    mode tcp
+    balance roundrobin
+    option httpchk GET /healthz
+    http-check expect status 200
+    option ssl-hello-chk
+{% for endpoint in  master_endpoints %}
+    server CP_NODE_{{ loop.index }} {{ endpoint }}:6443 check fall 3 rise 2
+{% endfor %}
+
+
+frontend supervisor
+    bind *:9345
+    option tcplog
+    mode tcp
+    default_backend supervisor
+
+backend supervisor
+    mode tcp
+    balance roundrobin
+    option tcp-check
+{% for endpoint in  master_endpoints %}
+    server CP_NODE_{{ loop.index }} {{ endpoint }}:9345 check fall 3 rise 1
+{% endfor %}
