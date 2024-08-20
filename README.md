@@ -1,5 +1,4 @@
-
-# Build RKE2 Kubernetes server on VMWare VColud
+# Build RKE2 Kubernetes cluster on VMWare VColud
 
 With this terraformer code, you can build a single cluster on a single availability zone
 
