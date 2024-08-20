@@ -8,3 +8,7 @@ hashed_pass             = "****"
 token_secret_key        = "****"
 ansible_password        = "****"
 domain                  = "example.domain"
+
+/*
+Note: to create hashed password for user-data: echo somapassword | mkpasswd -m sha-512 -s
+*/
